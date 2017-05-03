@@ -1,183 +1,24 @@
-/*
-Copyright IBM Corp. 2016 All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-		 http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package main
 
-//WARNING - this chaincode's ID is hard-coded in chaincode_example04 to illustrate one way of
-//calling chaincode from a chaincode. If this example is modified, chaincode_example04.go has
-//to be modified as well with the new ID of chaincode_example02.
-//chaincode_example05 show's how chaincode ID can be passed in as a parameter instead of
-//hard-coding.
-
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
-
 	"github.com/hyperledger/fabric/core/chaincode/shim"
+	
 )
 
 // SimpleChaincode example simple Chaincode implementation
 type SimpleChaincode struct {
 }
 
-func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	var A, B string    // Entities
-	var Aval, Bval int // Asset holdings
-	var err error
-
-	if len(args) != 4 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 4")
-	}
-
-	// Initialize the chaincode
-	A = args[0]
-	Aval, err = strconv.Atoi(args[1])
-	if err != nil {
-		return nil, errors.New("Expecting integer value for asset holding")
-	}
-	B = args[2]
-	Bval, err = strconv.Atoi(args[3])
-	if err != nil {
-		return nil, errors.New("Expecting integer value for asset holding")
-	}
-	fmt.Printf("Aval = %d, Bval = %d\n", Aval, Bval)
-
-	// Write the state to the ledger
-	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
-	if err != nil {
-		return nil, err
-	}
-
-	err = stub.PutState(B, []byte(strconv.Itoa(Bval)))
-	if err != nil {
-		return nil, err
-	}
-
-	return nil, nil
-}
-
-// Transaction makes payment of X units from A to B
-func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	if function == "delete" {
-		// Deletes an entity from its state
-		return t.delete(stub, args)
-	}
-
-	var A, B string    // Entities
-	var Aval, Bval int // Asset holdings
-	var X int          // Transaction value
-	var err error
-
-	if len(args) != 3 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 3")
-	}
-
-	A = args[0]
-	B = args[1]
-
-	// Get the state from the ledger
-	// TODO: will be nice to have a GetAllState call to ledger
-	Avalbytes, err := stub.GetState(A)
-	if err != nil {
-		return nil, errors.New("Failed to get state")
-	}
-	if Avalbytes == nil {
-		return nil, errors.New("Entity not found")
-	}
-	Aval, _ = strconv.Atoi(string(Avalbytes))
-
-	Bvalbytes, err := stub.GetState(B)
-	if err != nil {
-		return nil, errors.New("Failed to get state")
-	}
-	if Bvalbytes == nil {
-		return nil, errors.New("Entity not found")
-	}
-	Bval, _ = strconv.Atoi(string(Bvalbytes))
-
-	// Perform the execution
-	X, err = strconv.Atoi(args[2])
-	if err != nil {
-		return nil, errors.New("Invalid transaction amount, expecting a integer value")
-	}
-	Aval = Aval - X
-	Bval = Bval + X
-	fmt.Printf("Aval = %d, Bval = %d\n", Aval, Bval)
-
-	// Write the state back to the ledger
-	err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
-	if err != nil {
-		return nil, err
-	}
-
-	err = stub.PutState(B, []byte(strconv.Itoa(Bval)))
-	if err != nil {
-		return nil, err
-	}
-
-	return nil, nil
-}
-
-// Deletes an entity from state
-func (t *SimpleChaincode) delete(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 1")
-	}
-
-	A := args[0]
-
-	// Delete the key from the state in ledger
-	err := stub.DelState(A)
-	if err != nil {
-		return nil, errors.New("Failed to delete state")
-	}
-
-	return nil, nil
-}
-
-// Query callback representing the query of a chaincode
-func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	if function != "query" {
-		return nil, errors.New("Invalid query function name. Expecting \"query\"")
-	}
-	var A string // Entities
-	var err error
-
-	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting name of the person to query")
-	}
-
-	A = args[0]
-
-	// Get the state from the ledger
-	Avalbytes, err := stub.GetState(A)
-	if err != nil {
-		jsonResp := "{\"Error\":\"Failed to get state for " + A + "\"}"
-		return nil, errors.New(jsonResp)
-	}
-
-	if Avalbytes == nil {
-		jsonResp := "{\"Error\":\"Nil amount for " + A + "\"}"
-		return nil, errors.New(jsonResp)
-	}
-
-	jsonResp := "{\"Name\":\"" + A + "\",\"Amount\":\"" + string(Avalbytes) + "\"}"
-	fmt.Printf("Query Response:%s\n", jsonResp)
-	return Avalbytes, nil
+type VoteStateValue struct {
+	Status      string `json:"status"`
+	Candidateid string `json:"candidateid"`
+	Timestamp   string `json:"timestamp"`
+	Ipaddr      string `json:"ipaddr"`
+	Ua          string `json:"ua"`
+	TxID        string `json:"txid"`
 }
 
 func main() {
@@ -185,4 +26,140 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error starting Simple chaincode: %s", err)
 	}
+}
+
+// Init resets all the things
+func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	return nil, nil
+}
+
+// Invoke isur entry point to invoke a chaincode function
+func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	fmt.Println("invoke is running " + function)
+
+	// Handle different functions
+	if function == "init" {
+		return t.Init(stub, "init", args)
+	} else if function == "register" {
+		return t.register(stub, args)
+	}  else if function == "vote" {
+		return t.vote(stub, args)
+	} 
+	fmt.Println("invoke did not find func: " + function)
+
+	return nil, errors.New("Received unknown function invocation: " + function)
+}
+
+// Query is our entry point for queries
+func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	fmt.Println("query is running " + function)
+
+	// Handle different functions
+	if function == "read" {
+		return t.read(stub, args)
+	} 
+	fmt.Println("query did not find func: " + function)
+
+	return nil, errors.New("Received unknown function query: " + function)
+}
+
+// register (aVoteToken)  - register a vote token
+func (t *SimpleChaincode) register(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	fmt.Println("running register()")
+	var key, txid string
+	var err error
+	//var jsonBytes []byte
+
+	if len(args) != 1 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 1. a vote token to be registered.")
+	}
+
+	key = "vt_" + args[0] // vt_<voteToken>
+	txid = stub.GetTxID()
+	val := VoteStateValue{Status: "NEW", Candidateid: "", Timestamp: "", Ipaddr: "", Ua: "", TxID: txid}
+	jsonBytes, _ := json.Marshal(val)
+	err = stub.PutState(key, jsonBytes) // add the vote token into the chaincode state
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+
+// vote (aVoteToken, aCandidateId, timestamp, ipaddr, ua)  - vote action
+func (t *SimpleChaincode) vote(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	fmt.Println("running vote()")
+	var key,  txid string
+	var jsonBytes []byte
+	val := new(VoteStateValue)
+
+	if len(args) != 5 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 5 (votetoken, candidateid, timestamp, ipaddr, ua).")
+	}
+
+	
+	key = "vt_" + args[0]
+	jsonBytes, _ = t.read(stub, []string{args[0]})
+	json.Unmarshal(jsonBytes, val)
+	txid = stub.GetTxID()
+
+	if val.Status == "NEW" {
+		// the vote token exists and has not been voted.
+		val.Status = "VOTED"
+		val.Candidateid = args[1]
+		val.Timestamp = args[2]
+		val.Ipaddr = args[3]
+		val.Ua = args[4]
+		val.TxID = txid
+		
+		
+
+		jsonBytes, _ = json.Marshal(val)
+		stub.PutState(key, jsonBytes)
+		
+
+	} else if val.Status == "VOTED" {
+		stub.PutState("failure_"+args[0], []byte(txid))
+		return nil, errors.New("DUPLICATED: the vote key has already been voted.")
+	} else {
+		stub.PutState("failure_"+args[0], []byte(txid))
+		return nil, errors.New("ERROR")
+	}
+	return nil, nil
+}
+
+
+// read - query function to read a vote token status
+func (t *SimpleChaincode) read(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	fmt.Println("running read()")
+	var key, ret string
+	var err error
+	var jsonBytes []byte
+	val := new(VoteStateValue)
+
+	if len(args) != 1 {
+		return nil, errors.New("Incorrect number of arguments. Expecting a vote token to query")
+	}
+
+	key = "vt_" + args[0]
+	jsonBytes, err = stub.GetState(key)
+	if err != nil {
+		return nil, errors.New("Error occurred when getting state of " + key)
+	}
+
+	err = json.Unmarshal(jsonBytes, val)
+	if err != nil {
+		val.Status = "NA"
+		val.Candidateid = ""
+		val.Timestamp = ""
+		val.Ipaddr = ""
+		val.Ua = ""
+		val.TxID = ""
+	}
+	jsonBytes, err = json.Marshal(val)
+	ret = string(jsonBytes)
+	if err != nil {
+		ret = "{\"status\":\"ERROR\",\"candidateid\":\"\",\"timestamp\":\"\",\"ipaddr\":\"\",\"ua\":\"\",\"txid\":\"\"}"
+	}
+	return []byte(ret), nil
 }
