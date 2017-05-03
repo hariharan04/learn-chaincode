@@ -55,7 +55,9 @@ func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function strin
 	// Handle different functions
 	if function == "read" {
 		return t.read(stub, args)
-	} 
+	}else if function == "get_all_bids" { 
+	   return t.get_all_bids(stub, args)
+	}
 	fmt.Println("query did not find func: " + function)
 
 	return nil, errors.New("Received unknown function query: " + function)
