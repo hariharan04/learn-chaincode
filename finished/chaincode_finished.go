@@ -158,8 +158,6 @@ func (t *SimpleChaincode) read(stub shim.ChaincodeStubInterface, args []string) 
 	}
 	jsonBytes, err = json.Marshal(val)
 	ret = string(jsonBytes)
-	if err != nil {
-		ret = "{\"status\":\"ERROR\",\"candidateid\":\"\",\"timestamp\":\"\",\"ipaddr\":\"\",\"ua\":\"\",\"txid\":\"\"}"
-	}
+	
 	return []byte(ret), nil
 }
