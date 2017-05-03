@@ -42,8 +42,8 @@ func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function stri
 		return t.Init(stub, "init", args)
 	} else if function == "register" {
 		return t.register(stub, args)
-	}  else if function == "vote" {
-		return t.vote(stub, args)
+	}  else if function == "bid" {
+		return t.bid(stub, args)
 	} 
 	fmt.Println("invoke did not find func: " + function)
 
@@ -87,7 +87,7 @@ func (t *SimpleChaincode) register(stub shim.ChaincodeStubInterface, args []stri
 
 
 // vote (aVoteToken, aCandidateId, timestamp, ipaddr, ua)  - vote action
-func (t *SimpleChaincode) vote(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+func (t *SimpleChaincode) bid(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 	fmt.Println("running vote()")
 	var key,  txid string
 	var jsonBytes []byte
@@ -98,12 +98,11 @@ func (t *SimpleChaincode) vote(stub shim.ChaincodeStubInterface, args []string) 
 	}
 
 	
-	key = "vt_" + args[0]
-	jsonBytes, _ = t.read(stub, []string{args[0]})
-	json.Unmarshal(jsonBytes, val)
+	key = args[0]
+	
 	txid = stub.GetTxID()
 
-	if val.Status == "NEW" {
+	
 		// the vote token exists and has not been voted.
 		val.Status = "VOTED"
 		val.Candidateid = args[1]
@@ -111,20 +110,11 @@ func (t *SimpleChaincode) vote(stub shim.ChaincodeStubInterface, args []string) 
 		val.Ipaddr = args[3]
 		val.Ua = args[4]
 		val.TxID = txid
-		
-		
-
 		jsonBytes, _ = json.Marshal(val)
 		stub.PutState(key, jsonBytes)
 		
 
-	} else if val.Status == "VOTED" {
-		stub.PutState("failure_"+args[0], []byte(txid))
-		return nil, errors.New("DUPLICATED: the vote key has already been voted.")
-	} else {
-		stub.PutState("failure_"+args[0], []byte(txid))
-		return nil, errors.New("ERROR")
-	}
+	
 	return nil, nil
 }
 
@@ -135,29 +125,12 @@ func (t *SimpleChaincode) read(stub shim.ChaincodeStubInterface, args []string) 
 	var key, ret string
 	var err error
 	var jsonBytes []byte
-	val := new(VoteStateValue)
-
-	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting a vote token to query")
-	}
-
-	key = "vt_" + args[0]
+	
+	key = args[0]
 	jsonBytes, err = stub.GetState(key)
 	if err != nil {
 		return nil, errors.New("Error occurred when getting state of " + key)
 	}
-
-	err = json.Unmarshal(jsonBytes, val)
-	if err != nil {
-		val.Status = "NA"
-		val.Candidateid = ""
-		val.Timestamp = ""
-		val.Ipaddr = ""
-		val.Ua = ""
-		val.TxID = ""
-	}
-	jsonBytes, err = json.Marshal(val)
 	ret = string(jsonBytes)
-	
 	return []byte(ret), nil
 }
