@@ -99,7 +99,7 @@ func (t *SimpleChaincode) bid(stub shim.ChaincodeStubInterface, args []string) (
 	jsonBytes, _ = t.read(stub, []string{args[3]})
 	json.Unmarshal(jsonBytes, val)
 	txid = stub.GetTxID()
-	if val.Status == "NEW" {//val := Bid{Status: "NEW", Content: "", BidTime: "", Username: "", Amount: "", TxID: txid}
+	
 		// the vote token exists and has not been voted.
 		val.Status = "BID"
 		val.Content = args[1]
@@ -108,16 +108,12 @@ func (t *SimpleChaincode) bid(stub shim.ChaincodeStubInterface, args []string) (
 		val.Amount = args[4]
 		val.TxID = txid
 		jsonBytes, _ = json.Marshal(val)
-		stub.PutState(key, jsonBytes)
-		
-	} else if val.Status == "BID" {
-		stub.PutState("failure_"+args[3], []byte(txid))
-		return nil, errors.New("DUPLICATED: the BID has already Done this UserId.")
-	} else {
-		stub.PutState("failure_"+args[3], []byte(txid))
-		return nil, errors.New("ERROR: USER NOT REGISTER")
+		id, err:= t.append_id(stub, bidIndexStr, key, false)
+		stub.PutState(string(id), jsonBytes)
+		if err != nil {
+		return nil, err
 	}
-	return nil, nil
+		return nil, nil
 }
 
 // read - query function to read a vote token status
